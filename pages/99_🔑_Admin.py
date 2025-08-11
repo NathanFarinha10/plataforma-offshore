@@ -44,7 +44,7 @@ if password == st.secrets["ADMIN_PASSWORD"]:
             titulo = st.text_input("Título da Análise")
             
             # Tipos de análise agora incluem 'Visão BC'
-            tipo_analise = st.selectbox("Tipo de Análise", options=["Macro", "Visão BC", "Asset", "Driver", "Tese"])
+            tipo_analise = st.selectbox("Tipo de Análise", options=["Macro", "Visão BC", "Tese", "Asset", "Driver", "Tese"])
             
             gestora_nome = st.selectbox("Selecione a Gestora (deixe em branco para Visão BC)", options=["N/A"] + list(gestoras_map.keys()))
             pais_nome = st.selectbox("Selecione o País", options=list(paises_map.keys()))
