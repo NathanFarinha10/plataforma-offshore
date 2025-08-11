@@ -16,6 +16,34 @@ def get_paises():
     response = supabase.table('paises').select('id, nome, emoji_bandeira').execute()
     return {f"{item['nome']} {item['emoji_bandeira']}": item['id'] for item in response.data}
 
+# --- FUNÇÃO DE VISUALIZAÇÃO ---
+def create_timeline_chart(data):
+    """Cria um gráfico de timeline com a evolução das visões das gestoras."""
+    if not data:
+        return None
+
+    df = pd.DataFrame(data)
+    
+    # Mapeia a visão para um valor numérico para o gráfico
+    visao_map = {'Overweight': 1, 'Neutral': 0, 'Underweight': -1}
+    df['visao_numerica'] = df['visao'].map(visao_map)
+    
+    # Extrai o nome da gestora do dicionário aninhado
+    df['gestora_nome'] = df['gestoras'].apply(lambda x: x['nome'] if isinstance(x, dict) else 'N/A')
+    
+    # Converte a data para o formato correto
+    df['data_publicacao'] = pd.to_datetime(df['data_publicacao'])
+
+    # Cria o gráfico com Altair
+    chart = alt.Chart(df).mark_line(point=True).encode(
+        x=alt.X('data_publicacao:T', title='Data da Análise'),
+        y=alt.Y('visao_numerica:Q', title='Visão', axis=alt.Axis(values=[-1, 0, 1], labelExpr="datum.value == 1 ? 'Overweight' : datum.value == 0 ? 'Neutral' : 'Underweight'")),
+        color=alt.Color('gestora_nome:N', title='Gestora'),
+        tooltip=['gestora_nome', 'data_publicacao', 'visao', 'titulo']
+    ).interactive()
+    
+    return chart
+
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
 st.title("💡 Inteligência Global")
@@ -78,6 +106,22 @@ with tab_macro:
             st.info("Nenhuma análise do Banco Central encontrada para este país.")
 
         st.markdown("---")
+
+         # --- NOVO: PAINEL TIMELINE ---
+        st.subheader("Timeline de Visões")
+        # Busca dados apenas do tipo 'Macro' para a timeline
+        timeline_response = supabase.table('analises').select(
+            'data_publicacao, titulo, visao, gestoras(nome)'
+        ).eq('pais_id', pais_selecionado_id).eq('tipo_analise', 'Macro').neq('visao', 'N/A').execute()
+
+        if timeline_response.data:
+            timeline_chart = create_timeline_chart(timeline_response.data)
+            if timeline_chart:
+                st.altair_chart(timeline_chart, use_container_width=True)
+        else:
+            st.info("Não há dados suficientes para gerar a timeline de visões para este país.")
+        
+        st.markdown("---")
         
         # --- PAINEL VISÃO DAS GESTORAS ---
         st.subheader("Visão das Gestoras")
@@ -92,6 +136,20 @@ with tab_macro:
                     st.write(f"**Análise Completa:** {analise['texto_completo']}")
         else:
             st.info("Nenhuma análise macro de gestoras encontrada para este país.")
+
+        # --- NOVO: PAINEL TREND THESIS ---
+        st.subheader("Teses de Investimento (Macro)")
+        tese_response = supabase.table('analises').select('*, gestoras(nome)').eq('pais_id', pais_selecionado_id).eq('tipo_analise', 'Tese').execute()
+        
+        if tese_response.data:
+            for tese in tese_response.data:
+                nome_gestora = tese['gestoras']['nome'] if tese.get('gestoras') else "N/A"
+                with st.container(border=True):
+                    st.write(f"**{tese['titulo']}**")
+                    st.caption(f"Fonte: {nome_gestora} | Publicado em: {pd.to_datetime(tese['data_publicacao']).strftime('%d/%m/%Y')}")
+                    st.write(tese['texto_completo'])
+        else:
+            st.info("Nenhuma tese de investimento encontrada para este país.")
 
 # --- OUTRAS ABAS (EM CONSTRUÇÃO) ---
 with tab_assets:
