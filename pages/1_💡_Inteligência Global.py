@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
+import altair as alt
 
 # --- CONEXÃO COM O SUPABASE ---
 @st.cache_resource
