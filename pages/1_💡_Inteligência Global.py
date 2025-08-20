@@ -136,8 +136,65 @@ tab_hub, tab_macro, tab_assets, tab_micro, tab_thematic, tab_report = st.tabs([
 
 # --- ABA HUB ---
 with tab_hub:
-    st.header("📍 Hub de Inteligência")
-    st.write("Em breve...")
+    st.header("📍 Hub de Inteligência Global")
+    st.markdown(f"**Última atualização:** {datetime.now().strftime('%d de %B de %Y, %H:%M')}")
+    st.markdown("---")
+
+    # Layout em duas colunas
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("📰 Novas Análises")
+        
+        # Busca as 5 análises mais recentes
+        novas_analises = supabase.table('analises').select(
+            'titulo, resumo, tipo_analise, gestoras(nome)'
+        ).order('data_publicacao', desc=True).limit(5).execute()
+        
+        if novas_analises.data:
+            for analise in novas_analises.data:
+                with st.container(border=True):
+                    gestora = analise['gestoras']['nome'] if analise.get('gestoras') else "Interna"
+                    st.write(f"**{analise['titulo']}**")
+                    st.caption(f"Fonte: {gestora} | Tipo: {analise['tipo_analise']}")
+                    st.write(analise['resumo'])
+        else:
+            st.info("Nenhuma análise publicada recentemente.")
+
+    with col2:
+        st.subheader("⚠️ Alertas Recentes")
+        
+        # Busca os 5 alertas mais recentes
+        alertas = supabase.table('alertas').select('*').order('created_at', desc=True).limit(5).execute()
+        
+        if alertas.data:
+            for alerta in alertas.data:
+                emoji_map = {'Alta': '🔴', 'Média': '🟡', 'Baixa': '🟢'}
+                st.markdown(f"{emoji_map.get(alerta['importancia'], '')} **{alerta['titulo']}** ({alerta['tipo_alerta']})")
+                if alerta['descricao']:
+                    st.caption(alerta['descricao'])
+        else:
+            st.info("Nenhum alerta recente.")
+
+        st.markdown("---")
+        
+        st.subheader("🗓️ Próximos Eventos do Calendário")
+        
+        # Busca eventos dos próximos 7 dias
+        hoje = datetime.today().date()
+        proxima_semana = hoje + timedelta(days=7)
+        eventos = supabase.table('eventos_calendario').select(
+            'data_evento, nome_evento, importancia, paises(nome, emoji_bandeira)'
+        ).gte('data_evento', hoje.isoformat()).lte('data_evento', proxima_semana.isoformat()).order('data_evento').execute()
+
+        if eventos.data:
+            for evento in eventos.data:
+                data = pd.to_datetime(evento['data_evento']).strftime('%d/%m')
+                pais = evento['paises']['nome'] if evento.get('paises') else "Global"
+                emoji = evento['paises']['emoji_bandeira'] if evento.get('paises') else "🌍"
+                st.write(f"**{data}** - {evento['nome_evento']} ({pais} {emoji}) - *Importância: {evento['importancia']}*")
+        else:
+            st.info("Nenhum evento importante nos próximos 7 dias.")
 
 # --- ABA MACRO VIEW ---
 with tab_macro:
