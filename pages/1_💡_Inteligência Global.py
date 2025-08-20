@@ -126,13 +126,14 @@ def generate_pdf_report(selected_data):
                 visao = str(analise.get('visao', ''))
                 resumo = str(analise.get('resumo', ''))
                 
+                # Bloco Correto
                 pdf.set_font('DejaVu', 'B', 12)
-                pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})")
+                pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})") # multi_cell para texto que pode ser longo
                 
                 pdf.set_font('DejaVu', '', 11)
-                pdf.multi_cell(0, 8, f"Visão: {visao}")
-                pdf.multi_cell(0, 8, f"Resumo: {resumo}")
-                pdf.ln(8) # Adiciona um espaço maior entre as análises
+                pdf.cell(0, 8, f"Visão: {visao}", ln=1, align='L') # cell para a linha de texto curta e simples
+                pdf.multi_cell(0, 8, f"Resumo: {resumo}") # multi_cell para texto que pode ser longo
+                pdf.ln(8)
 
     # Gera o PDF em memória como bytes
     return pdf.output(dest='B')
