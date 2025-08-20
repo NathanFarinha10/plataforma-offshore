@@ -82,61 +82,79 @@ def display_analises(analises):
 # --- NOVA FUNÇÃO: VERSÃO DE TESTE PARA DIAGNÓSTICO ---
 # --- FUNÇÃO DE PDF FINAL - VERSÃO ROBUSTA E À PROVA DE DADOS ---
 def generate_pdf_report(selected_data):
-    """Gera um relatório em PDF robusto com suporte a Unicode, tratando os dados de forma defensiva."""
-    
     class PDF(FPDF):
         def header(self):
-            self.set_font('DejaVu', 'B', 12)
-            self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
-            self.ln(10)
+            try:
+                self.set_font('DejaVu', 'B', 12)
+                self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
+                self.ln(10)
+            except Exception as e:
+                st.warning(f"Aviso no cabeçalho do PDF: {e}")
 
         def footer(self):
-            self.set_y(-15)
-            self.set_font('DejaVu', 'I', 8)
-            self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+            try:
+                self.set_y(-15)
+                self.set_font('DejaVu', 'I', 8)
+                self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+            except Exception as e:
+                st.warning(f"Aviso no rodapé do PDF: {e}")
 
     pdf = PDF()
     
-    # Adiciona a fonte Unicode que carregámos para o repositório
-    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-    pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True)
-    pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True) # VERSÃO ITÁLICO (LINHA ADICIONADA)
+    try:
+        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True)
+        pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True)
+    except Exception as e:
+        st.error(f"ERRO CRÍTICO: Falha ao carregar a fonte 'DejaVuSans.ttf'. Verifique se o ficheiro existe no repositório. Detalhes: {e}")
+        return None
 
     pdf.add_page()
-    
-    # Página de Título
     pdf.set_font('DejaVu', 'B', 24)
     pdf.cell(0, 20, 'Inteligência Global', 0, 1, 'C')
     pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, f"Relatório gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1, 'C')
     pdf.ln(20)
 
-    # Adiciona o conteúdo
     for section_title, analises in selected_data.items():
-        if analises:
-            pdf.add_page()
-            pdf.set_font('DejaVu', 'B', 16)
-            pdf.multi_cell(0, 10, str(section_title), 0, 'L')
-            pdf.ln(5)
-            
-            for analise in analises:
-                # Garante que todos os dados são strings antes de os passar para o PDF
+        if not analises:
+            continue
+        
+        pdf.add_page()
+        pdf.set_font('DejaVu', 'B', 16)
+        pdf.multi_cell(0, 10, str(section_title), 0, 'L')
+        pdf.ln(5)
+        
+        for i, analise in enumerate(analises):
+            try:
+                # Converte cada campo para string de forma defensiva
                 nome_gestora = str(analise.get('gestoras', {}).get('nome', "N/A"))
-                titulo = str(analise.get('titulo', ''))
-                visao = str(analise.get('visao', ''))
+                titulo = str(analise.get('titulo', 'Sem Título'))
+                visao = str(analise.get('visao', 'N/A'))
                 resumo = str(analise.get('resumo', ''))
                 
-                # Bloco Correto
                 pdf.set_font('DejaVu', 'B', 12)
-                pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})") # multi_cell para texto que pode ser longo
+                pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})")
                 
                 pdf.set_font('DejaVu', '', 11)
-                pdf.cell(0, 8, f"Visão: {visao}", ln=1, align='L') # cell para a linha de texto curta e simples
-                pdf.multi_cell(0, 8, f"Resumo: {resumo}") # multi_cell para texto que pode ser longo
+                # Usar 'cell' para a linha curta e 'multi_cell' para a longa
+                pdf.cell(0, 8, f"Visão: {visao}", ln=1, align='L')
+                pdf.multi_cell(0, 8, f"Resumo: {resumo}")
                 pdf.ln(8)
+            except Exception as e:
+                st.warning(f"Aviso: A análise '{titulo[:30]}...' não pôde ser incluída no PDF devido a um erro de conteúdo. Detalhes: {e}")
+                continue # Pula para a próxima análise em vez de quebrar
 
-    # Gera o PDF em memória como bytes
-    return pdf.output(dest='B')
+    try:
+        pdf_bytes = pdf.output(dest='B')
+        if not pdf_bytes:
+            st.error("Falha Crítica: A biblioteca de PDF gerou um ficheiro vazio.")
+            return None
+        return pdf_bytes
+    except Exception as e:
+        st.error(f"Falha Crítica ao finalizar o PDF: {e}")
+        return None
+
         
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
