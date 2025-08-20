@@ -64,7 +64,7 @@ if password == st.secrets["ADMIN_PASSWORD"]:
     temas_map = get_all_data('temas')
     analyses_map = get_all_analyses()
 
-    tab_analise, tab_indicadores, tab_temas = st.tabs(["Gerenciar Análises", "Gerenciar Indicadores", "Gerenciar Temas"])
+    tab_analise, tab_indicadores, tab_temas, tab_alertas = st.tabs(["Gerenciar Análises", "Gerenciar Indicadores", "Gerenciar Temas", "Gerenciar Alertas"])
 
     with tab_analise:
         st.header("Gestão de Análises")
@@ -243,6 +243,32 @@ if password == st.secrets["ADMIN_PASSWORD"]:
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao apagar: {e}")
+
+    with tab_alertas:
+        st.header("Gerenciar Alertas para o Hub")
+        st.info("Crie alertas que aparecerão em destaque na página principal do Hub.")
+
+        with st.form("alertas_form", clear_on_submit=True):
+            titulo = st.text_input("Título do Alerta")
+            tipo_alerta = st.selectbox("Tipo de Alerta", options=['Mudança de Visão', 'Risco', 'Oportunidade', 'Notícia'])
+            importancia = st.selectbox("Importância", options=['Alta', 'Média', 'Baixa'])
+            descricao = st.text_area("Descrição (opcional)")
+            
+            submitted_alerta = st.form_submit_button("Salvar Alerta")
+            if submitted_alerta:
+                form_data = {
+                    'titulo': titulo,
+                    'tipo_alerta': tipo_alerta,
+                    'importancia': importancia,
+                    'descricao': descricao
+                }
+                try:
+                    supabase.table('alertas').insert(form_data).execute()
+                    st.success(f"Alerta '{titulo}' criado com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro ao salvar o alerta: {e}")
+        
+        # Adicionar aqui a funcionalidade de ver/editar/apagar alertas no futuro
 
 elif password:
     st.error("Senha incorreta. Tente novamente.")
