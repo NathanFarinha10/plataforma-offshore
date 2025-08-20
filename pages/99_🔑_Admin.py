@@ -269,6 +269,64 @@ if password == st.secrets["ADMIN_PASSWORD"]:
                     st.error(f"Erro ao salvar o alerta: {e}")
         
         # Adicionar aqui a funcionalidade de ver/editar/apagar alertas no futuro
+     with tab_alocacoes:
+        st.header("Gerenciar Alocações Modelo")
+        st.info("Crie e edite as carteiras modelo que serão sugeridas aos utilizadores.")
+
+        # Buscar perfis de risco
+        perfis_response = supabase.table('perfis_de_risco').select('id, nome').execute()
+        perfis_map = {p['nome']: p['id'] for p in perfis_response.data}
+        
+        selected_perfil_nome = st.selectbox("Selecione o Perfil de Risco para editar a alocação:", options=perfis_map.keys())
+        selected_perfil_id = perfis_map[selected_perfil_nome]
+
+        # Verifica se já existe uma alocação para este perfil
+        alocacao_existente = supabase.table('alocacoes_modelo').select('*').eq('perfil_de_risco_id', selected_perfil_id).maybe_single().execute().data
+        
+        if alocacao_existente:
+            st.write(f"Editando: **{alocacao_existente['nome_estrategia']}**")
+            # Carrega componentes existentes
+            componentes_existentes = supabase.table('componentes_alocacao').select('*').eq('alocacao_modelo_id', alocacao_existente['id']).execute().data
+            df_componentes = pd.DataFrame(componentes_existentes)
+        else:
+            st.warning(f"Nenhuma alocação encontrada para o perfil '{selected_perfil_nome}'. Crie uma abaixo.")
+            df_componentes = pd.DataFrame(columns=['nome_ativo', 'ticker_exemplo', 'percentual', 'justificativa'])
+
+        with st.form("alocacao_form"):
+            nome_estrategia = st.text_input("Nome da Estratégia", value=alocacao_existente['nome_estrategia'] if alocacao_existente else f"Alocação {selected_perfil_nome} Global")
+            
+            st.write("Componentes da Alocação:")
+            
+            # Usar o editor de dados do Streamlit para uma experiência de tabela
+            edited_df = st.data_editor(df_componentes[['nome_ativo', 'ticker_exemplo', 'percentual', 'justificativa']], num_rows="dynamic", key="alocacao_editor")
+
+            submitted = st.form_submit_button("Salvar Alocação")
+            if submitted:
+                total_percentual = edited_df['percentual'].astype(float).sum()
+                if not (99.9 <= total_percentual <= 100.1):
+                    st.error(f"A soma dos percentuais deve ser 100%. Soma atual: {total_percentual:.2f}%")
+                else:
+                    try:
+                        # Se a alocação não existe, cria-a primeiro
+                        if not alocacao_existente:
+                            alocacao_existente = supabase.table('alocacoes_modelo').insert({
+                                'perfil_de_risco_id': selected_perfil_id,
+                                'nome_estrategia': nome_estrategia
+                            }).execute().data[0]
+                        
+                        alocacao_id = alocacao_existente['id']
+                        # Apaga os componentes antigos
+                        supabase.table('componentes_alocacao').delete().eq('alocacao_modelo_id', alocacao_id).execute()
+                        
+                        # Insere os novos componentes
+                        novos_componentes = edited_df.to_dict('records')
+                        for comp in novos_componentes:
+                            comp['alocacao_modelo_id'] = alocacao_id
+                        
+                        supabase.table('componentes_alocacao').insert(novos_componentes).execute()
+                        st.success(f"Alocação para o perfil '{selected_perfil_nome}' salva com sucesso!")
+                    except Exception as e:
+                        st.error(f"Erro ao salvar a alocação: {e}")
 
 elif password:
     st.error("Senha incorreta. Tente novamente.")
