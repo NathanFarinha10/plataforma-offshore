@@ -284,7 +284,8 @@ if password == st.secrets["ADMIN_PASSWORD"]:
         selected_perfil_id = perfis_map[selected_perfil_nome]
 
         # Verifica se já existe uma alocação para este perfil
-        alocacao_existente = supabase.table('alocacoes_modelo').select('*').eq('perfil_de_risco_id', selected_perfil_id).maybe_single().execute().data
+        response = supabase.table('alocacoes_modelo').select('*').eq('perfil_de_risco_id', selected_perfil_id).limit(1).execute()
+        alocacao_existente = response.data[0] if response.data else None
         
         if alocacao_existente:
             st.write(f"Editando: **{alocacao_existente['nome_estrategia']}**")
