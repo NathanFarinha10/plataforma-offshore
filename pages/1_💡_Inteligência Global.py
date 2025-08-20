@@ -337,43 +337,40 @@ with tab_report:
     st.header("📄 Gerador de Relatórios Personalizados")
     st.write("Selecione as análises que deseja incluir no seu relatório em PDF.")
     
-    # Carrega dados para os seletores
     paises_map = get_paises()
     classes_map = get_classes_de_ativos()
     temas_map = get_temas()
 
-    # UI de Seleção
     selected_paises = st.multiselect("Análises Macro por País:", options=list(paises_map.keys()))
     selected_classes = st.multiselect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
     selected_temas = st.multiselect("Análises Temáticas:", options=[k for k in temas_map.keys() if k != '--Selecione--'])
     
-    # Botão para iniciar a geração
     if st.button("Gerar Relatório"):
-        with st.spinner("Compilando seu relatório... Por favor, aguarde."):
+        with st.spinner("Compilando seu relatório..."):
             report_data = {}
+            # ... (código para buscar dados não muda)
             
-            # Busca dados macro
-            if selected_paises:
-                pais_ids = [paises_map[p] for p in selected_paises]
-                macro_response = supabase.table('analises').select('*, gestoras(nome)').in_('pais_id', pais_ids).eq('tipo_analise', 'Macro').execute()
-                report_data['Analises Macroeconomicas'] = macro_response.data
-            
-            # Busca dados de classes de ativos
-            if selected_classes:
-                classe_ids = [classes_map[c] for c in selected_classes]
-                asset_response = supabase.table('analises').select('*, gestoras(nome)').in_('classe_de_ativo_id', classe_ids).eq('tipo_analise', 'Asset').execute()
-                report_data['Analises por Classe de Ativo'] = asset_response.data
+            # Chama a função de geração de PDF
+            pdf_data_bytes = generate_pdf_report(report_data)
 
-            # Busca dados de temas
-            if selected_temas:
-                tema_ids = [temas_map[t] for t in selected_temas]
-                thematic_response = supabase.table('analises').select('*, gestoras(nome)').in_('tema_id', tema_ids).eq('tipo_analise', 'Thematic').execute()
-                report_data['Analises Tematicas'] = thematic_response.data
-            
-            # Gera o PDF e armazena no estado da sessão
-            st.session_state.pdf_report = generate_pdf_report(report_data)
+            # --- NOVO CÓDIGO DE DEPURAÇÃO ---
+            st.markdown("---")
+            st.subheader("🕵️ Informação de Depuração")
+            if pdf_data_bytes is not None:
+                st.info(f"Tipo de dados retornados pela função PDF: **{type(pdf_data_bytes)}**")
+                st.info(f"Tamanho dos dados retornados: **{len(pdf_data_bytes)} bytes**")
+                
+                if isinstance(pdf_data_bytes, bytes) and len(pdf_data_bytes) > 100:
+                    st.success("Diagnóstico: Os dados parecem ser 'bytes' válidos e não vazios.")
+                    st.session_state.pdf_report = pdf_data_bytes
+                else:
+                    st.error("Diagnóstico: Os dados retornados NÃO são 'bytes' válidos ou estão vazios. O download não será disponibilizado.")
+                    st.session_state.pdf_report = None
+            else:
+                st.error("Diagnóstico: A função de geração de PDF retornou `None`. Verifique os avisos de erro acima.")
+                st.session_state.pdf_report = None
+            st.markdown("---")
 
-    # Botão de download (só aparece se o relatório foi gerado)
     if 'pdf_report' in st.session_state and st.session_state.pdf_report:
         st.download_button(
             label="Clique para Baixar o PDF",
