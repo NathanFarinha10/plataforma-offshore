@@ -57,7 +57,7 @@ if password == st.secrets["ADMIN_PASSWORD"]:
     classes_map = get_classes_de_ativos()
     temas_map = get_temas()
 
-    tab_analise, tab_indicadores = st.tabs(["Lançar Análise", "Gerenciar Indicadores", "Gerenciar Temas"])
+    tab_analise, tab_indicadores, tab_temas = st.tabs(["Lançar Análise", "Gerenciar Indicadores", "Gerenciar Temas"])
 
     with tab_analise:
         st.header("Inserir Nova Análise")
