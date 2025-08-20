@@ -11,13 +11,28 @@ def init_connection() -> Client:
 supabase = init_connection()
 
 # --- FUNÇÕES DE CONSULTA AO BANCO ---
+@st.cache_data(ttl=600)
 def get_gestoras():
     response = supabase.table('gestoras').select('id, nome').execute()
     return {item['nome']: item['id'] for item in response.data}
 
+@st.cache_data(ttl=600)
 def get_paises():
     response = supabase.table('paises').select('id, nome').execute()
     return {item['nome']: item['id'] for item in response.data}
+
+@st.cache_data(ttl=600)
+def get_classes_de_ativos():
+    response = supabase.table('classes_de_ativos').select('id, nome').execute()
+    return {item['nome']: item['id'] for item in response.data}
+
+@st.cache_data(ttl=600)
+def get_subclasses_de_ativos(classe_pai_id):
+    if not classe_pai_id:
+        return {}
+    response = supabase.table('subclasses_de_ativos').select('id, nome').eq('classe_pai_id', classe_pai_id).execute()
+    return {item['nome']: item['id'] for item in response.data}
+
 
 # --- INTERFACE DA PÁGINA ADMIN ---
 st.set_page_config(page_title="Painel Admin", page_icon="🔑", layout="wide")
@@ -34,34 +49,44 @@ if password == st.secrets["ADMIN_PASSWORD"]:
     # Carrega os dados para os dropdowns
     gestoras_map = get_gestoras()
     paises_map = get_paises()
+    classes_map = get_classes_de_ativos()
 
-    # Separa os formulários em abas para melhor organização
     tab_analise, tab_indicadores = st.tabs(["Lançar Análise", "Gerenciar Indicadores"])
 
     with tab_analise:
         st.header("Inserir Nova Análise")
         with st.form("nova_analise_form", clear_on_submit=True):
             titulo = st.text_input("Título da Análise")
-            
-            # Tipos de análise agora incluem 'Visão BC'
-            tipo_analise = st.selectbox("Tipo de Análise", options=["Macro", "Visão BC", "Tese", "Asset", "Driver", "Tese"])
-            
-            gestora_nome = st.selectbox("Selecione a Gestora (deixe em branco para Visão BC)", options=["N/A"] + list(gestoras_map.keys()))
+            tipo_analise = st.selectbox("Tipo de Análise", options=["Macro", "Visão BC", "Tese", "Asset", "MicroAsset", "Thematic"])
+
+            # --- CAMPOS DINÂMICOS ---
             pais_nome = st.selectbox("Selecione o País", options=list(paises_map.keys()))
-            visao = st.selectbox("Visão", options=["Overweight", "Neutral", "Underweight", "N/A"])
+            classe_nome = st.selectbox("Selecione a Classe de Ativo (para 'Asset' ou 'MicroAsset')", options=["N/A"] + list(classes_map.keys()))
             
+            subclasses_map = {}
+            if classe_nome and classe_nome != "N/A":
+                classe_id = classes_map.get(classe_nome)
+                subclasses_map = get_subclasses_de_ativos(classe_id)
+                subclasse_nome = st.selectbox("Selecione a Sub-Classe (para 'MicroAsset')", options=["N/A"] + list(subclasses_map.keys()))
+            
+            gestora_nome = st.selectbox("Selecione a Gestora", options=["N/A"] + list(gestoras_map.keys()))
+            visao = st.selectbox("Visão", options=["Overweight", "Neutral", "Underweight", "N/A"])
             resumo = st.text_area("Resumo")
             texto_completo = st.text_area("Texto Completo da Análise", height=300)
             
             submitted = st.form_submit_button("Salvar Análise")
             if submitted:
-                gestora_id = gestoras_map.get(gestora_nome) # .get() para não dar erro se for "N/A"
-                pais_id = paises_map[pais_nome]
+                # Mapeia nomes para IDs
+                pais_id = paises_map.get(pais_nome)
+                gestora_id = gestoras_map.get(gestora_nome)
+                classe_id_final = classes_map.get(classe_nome)
+                subclasse_id_final = subclasses_map.get(subclasse_nome) if 'subclasse_nome' in locals() else None
                 
                 nova_analise_data = {
                     'titulo': titulo, 'resumo': resumo, 'texto_completo': texto_completo,
-                    'tipo_analise': tipo_analise, 'visao': visao,
-                    'gestora_id': gestora_id, 'pais_id': pais_id
+                    'tipo_analise': tipo_analise, 'visao': visao, 'pais_id': pais_id,
+                    'gestora_id': gestora_id, 'classe_de_ativo_id': classe_id_final,
+                    'subclasse_de_ativo_id': subclasse_id_final
                 }
                 try:
                     supabase.table('analises').insert(nova_analise_data).execute()
