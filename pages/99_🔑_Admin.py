@@ -64,7 +64,10 @@ if password == st.secrets["ADMIN_PASSWORD"]:
     temas_map = get_all_data('temas')
     analyses_map = get_all_analyses()
 
-    tab_analise, tab_indicadores, tab_temas, tab_alertas = st.tabs(["Gerenciar Análises", "Gerenciar Indicadores", "Gerenciar Temas", "Gerenciar Alertas"])
+    tab_analise, tab_indicadores, tab_temas, tab_alertas, tab_alocacoes = st.tabs([
+        "Gerenciar Análises", "Gerenciar Indicadores", "Gerenciar Temas", 
+        "Gerenciar Alertas", "Gerenciar Alocações"
+    ])
 
     with tab_analise:
         st.header("Gestão de Análises")
