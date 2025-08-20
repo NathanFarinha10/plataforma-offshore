@@ -269,7 +269,7 @@ if password == st.secrets["ADMIN_PASSWORD"]:
                     st.error(f"Erro ao salvar o alerta: {e}")
         
         # Adicionar aqui a funcionalidade de ver/editar/apagar alertas no futuro
-     with tab_alocacoes:
+    with tab_alocacoes:
         st.header("Gerenciar Alocações Modelo")
         st.info("Crie e edite as carteiras modelo que serão sugeridas aos utilizadores.")
 
@@ -326,7 +326,7 @@ if password == st.secrets["ADMIN_PASSWORD"]:
                         supabase.table('componentes_alocacao').insert(novos_componentes).execute()
                         st.success(f"Alocação para o perfil '{selected_perfil_nome}' salva com sucesso!")
                     except Exception as e:
-                        st.error(f"Erro ao salvar a alocação: {e}")
+                        st.error(f"Erro ao salvar a alocação: {e}") 
 
 elif password:
     st.error("Senha incorreta. Tente novamente.")
