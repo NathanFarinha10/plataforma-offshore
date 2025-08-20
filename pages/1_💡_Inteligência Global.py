@@ -315,50 +315,32 @@ with tab_report:
     if st.button("Gerar Relatório"):
         with st.spinner("Compilando seu relatório..."):
             report_data = {}
-            st.session_state.pdf_report = None # Limpa o relatório anterior
-            
-            # --- INÍCIO DO BLOCO DE DEPURAÇÃO ---
-            st.markdown("---")
-            st.subheader("🕵️ Informação de Depuração")
+            st.session_state.pdf_report = None
 
-            # Depuração de dados macro
             if selected_paises:
                 pais_ids = [paises_map[p] for p in selected_paises]
-                st.write(f"Buscando análises 'Macro' para IDs de país: `{pais_ids}`")
                 macro_response = supabase.table('analises').select('*, gestoras(nome)').in_('pais_id', pais_ids).eq('tipo_analise', 'Macro').execute()
-                st.write(f"Encontradas {len(macro_response.data)} análises 'Macro'.")
                 if macro_response.data:
                     report_data['Analises Macroeconomicas'] = macro_response.data
             
-            # Depuração de dados de classes de ativos
             if selected_classes:
                 classe_ids = [classes_map[c] for c in selected_classes]
-                st.write(f"Buscando análises 'Asset' para IDs de classe: `{classe_ids}`")
                 asset_response = supabase.table('analises').select('*, gestoras(nome)').in_('classe_de_ativo_id', classe_ids).eq('tipo_analise', 'Asset').execute()
-                st.write(f"Encontradas {len(asset_response.data)} análises 'Asset'.")
                 if asset_response.data:
                     report_data['Analises por Classe de Ativo'] = asset_response.data
 
-            # Depuração de dados de temas
             if selected_temas:
                 tema_ids = [temas_map[t] for t in selected_temas]
-                st.write(f"Buscando análises 'Thematic' para IDs de tema: `{tema_ids}`")
                 thematic_response = supabase.table('analises').select('*, gestoras(nome)').in_('tema_id', tema_ids).eq('tipo_analise', 'Thematic').execute()
-                st.write(f"Encontradas {len(thematic_response.data)} análises 'Thematic'.")
                 if thematic_response.data:
                     report_data['Analises Tematicas'] = thematic_response.data
             
-            st.write("Conteúdo final a ser enviado para o PDF:")
-            st.json(report_data) # Mostra o dicionário de dados completo
-            st.markdown("---")
-            # --- FIM DO BLOCO DE DEPURAÇÃO ---
-
             pdf_output = generate_pdf_report(report_data)
 
             if pdf_output:
                 st.session_state.pdf_report = bytes(pdf_output)
             else:
-                st.error("Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.")
+                st.error("Ocorreu um erro ao gerar o PDF.")
 
     if 'pdf_report' in st.session_state and st.session_state.pdf_report:
         st.download_button(
