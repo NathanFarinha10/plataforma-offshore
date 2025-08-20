@@ -125,7 +125,7 @@ def generate_pdf_report(selected_data):
                 pdf.multi_cell(0, 10, f"{analise['titulo']} (Fonte: {nome_gestora})")
                 
                 pdf.set_font('DejaVu', '', 11)
-                pdf.multi_cell(0, 8, f"Visão: {analise['visao']}", 0, 'L')
+                pdf.cell(0, 8, f"Visão: {analise['visao']}", ln=1, align='L')
                 pdf.multi_cell(0, 8, f"Resumo: {analise['resumo']}", 0, 'L')
                 pdf.ln(5)
 
