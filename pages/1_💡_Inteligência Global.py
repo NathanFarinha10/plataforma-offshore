@@ -79,59 +79,33 @@ def display_analises(analises):
             st.write(f"**Análise Completa:** {analise['texto_completo']}")
 
 # --- NOVA FUNÇÃO: GERADOR DE PDF ---
+# --- NOVA FUNÇÃO: VERSÃO DE TESTE PARA DIAGNÓSTICO ---
 def generate_pdf_report(selected_data):
-    """Gera um relatório em PDF robusto com suporte a Unicode."""
-    
-    class PDF(FPDF):
-        def header(self):
-            self.set_font('DejaVu', 'B', 12)
-            self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
-            self.ln(10)
+    """Gera um PDF de teste 'Olá Mundo' para isolar o problema."""
+    try:
+        st.info("Iniciando a geração do PDF de teste...")
+        pdf = FPDF()
+        pdf.add_page()
 
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('DejaVu', 'I', 8)
-            self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+        # Tenta adicionar e usar a fonte Unicode
+        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        pdf.set_font('DejaVu', '', 14)
 
-    pdf = PDF()
-    
-    # Adiciona a fonte Unicode que carregámos para o repositório
-    # O 'uni=True' é o parâmetro chave para ativar o modo UTF-8
-    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-    pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True) # Versão a negrito
-    pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True) # Versão itálico
+        # Escreve um texto de teste simples com acentuação
+        pdf.cell(0, 10, 'Teste de Geração de PDF: Olá Mundo com acentuação!')
 
-    pdf.add_page()
-    
-    # Página de Título
-    pdf.set_font('DejaVu', 'B', 24)
-    pdf.cell(0, 20, 'Inteligência Global', 0, 1, 'C')
-    pdf.set_font('DejaVu', '', 12)
-    pdf.cell(0, 10, f"Relatório gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1, 'C')
-    pdf.ln(20)
+        st.success("Função de PDF executada com sucesso. A preparar o download...")
 
-    # Adiciona o conteúdo
-    for section_title, analises in selected_data.items():
-        if analises:
-            pdf.add_page()
-            pdf.set_font('DejaVu', 'B', 16)
-            pdf.multi_cell(0, 10, section_title, 0, 'L')
-            pdf.ln(5)
-            
-            for analise in analises:
-                nome_gestora = analise['gestoras']['nome'] if analise.get('gestoras') else "N/A"
-                pdf.set_font('DejaVu', 'B', 12)
-                # Agora passamos o texto diretamente, sem truques de .encode()
-                pdf.multi_cell(0, 10, f"{analise['titulo']} (Fonte: {nome_gestora})")
-                
-                pdf.set_font('DejaVu', '', 11)
-                pdf.cell(0, 8, f"Visão: {analise['visao']}", ln=1, align='L')
-                pdf.multi_cell(0, 8, f"Resumo: {analise['resumo']}", 0, 'L')
-                pdf.ln(5)
+        # Retorna os bytes
+        return pdf.output(dest='B')
 
-    # Gera o PDF em memória como bytes
-    return pdf.output(dest='B')
-
+    except FileNotFoundError:
+        st.error("ERRO CRÍTICO: O ficheiro da fonte 'DejaVuSans.ttf' não foi encontrado. Por favor, verifique se o carregou para a raiz do repositório no GitHub.")
+        return None
+    except Exception as e:
+        st.error(f"Ocorreu um erro inesperado dentro da função PDF: {e}")
+        return None
+        
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
 st.title("💡 Inteligência Global")
