@@ -30,6 +30,22 @@ def get_full_analysis_details(analysis_id):
     response = supabase.table('analises').select('*').eq('id', analysis_id).single().execute()
     return response.data
 
+@st.cache_data(ttl=60)
+def get_all_indicators():
+    response = supabase.table('indicadores_economicos').select('id, nome_indicador, paises(nome)').order('nome_indicador').execute()
+    return {"--- Criar Novo Indicador ---": None, **{f"{item['paises']['nome']} - {item['nome_indicador']}": item['id'] for item in response.data}}
+
+@st.cache_data(ttl=60)
+def get_full_indicator_details(indicator_id):
+    if not indicator_id: return None
+    response = supabase.table('indicadores_economicos').select('*').eq('id', indicator_id).single().execute()
+    return response.data
+
+@st.cache_data(ttl=60)
+def get_all_themes():
+    response = supabase.table('temas').select('id, nome').order('nome').execute()
+    return {"--- Criar Novo Tema ---": None, **{item['nome']: item['id'] for item in response.data}}
+
 # --- INTERFACE DA PÁGINA ADMIN ---
 st.set_page_config(page_title="Painel Admin", page_icon="🔑", layout="wide")
 st.title("🔑 Painel de Administração")
@@ -132,11 +148,101 @@ if password == st.secrets["ADMIN_PASSWORD"]:
 
     with tab_indicadores:
         st.header("Gerenciar Indicadores Econômicos")
-        st.info("Funcionalidade de Editar/Apagar para Indicadores em breve.")
+        
+        indicators_map = get_all_indicators()
+        paises_map = get_all_data('paises')
+
+        selected_indicator_label = st.selectbox(
+            "Selecione um indicador para editar ou escolha 'Criar Novo Indicador'",
+            options=list(indicators_map.keys()),
+            key="indicator_select"
+        )
+        selected_indicator_id = indicators_map[selected_indicator_label]
+        indicator_data = get_full_indicator_details(selected_indicator_id) if selected_indicator_id else {}
+
+        with st.form("indicadores_form", clear_on_submit=False):
+            def get_pais_index(pais_id):
+                if not pais_id: return 0
+                reverse_map = {v: k for k, v in paises_map.items()}
+                key = reverse_map.get(pais_id)
+                return list(paises_map.keys()).index(key) if key in paises_map else 0
+
+            pais_nome = st.selectbox("País do Indicador", options=list(paises_map.keys()), index=get_pais_index(indicator_data.get('pais_id')))
+            nome_indicador = st.text_input("Nome do Indicador", value=indicator_data.get('nome_indicador', ''))
+            valor_atual = st.text_input("Valor Atual", value=indicator_data.get('valor_atual', ''))
+            data_referencia = st.text_input("Data de Referência", value=indicator_data.get('data_referencia', ''))
+            
+            tendencia_options = ["N/A", "Estável 😐", "Alta ↗️", "Baixa ↘️"]
+            tendencia_idx = tendencia_options.index(indicator_data.get('tendencia', "N/A")) if indicator_data.get('tendencia') in tendencia_options else 0
+            tendencia = st.selectbox("Tendência", options=tendencia_options, index=tendencia_idx)
+            
+            submitted_indicador = st.form_submit_button("Salvar Indicador")
+            if submitted_indicador:
+                pais_id = paises_map[pais_nome]
+                form_data = {
+                    'pais_id': pais_id, 'nome_indicador': nome_indicador,
+                    'valor_atual': valor_atual, 'data_referencia': data_referencia,
+                    'tendencia': tendencia
+                }
+                try:
+                    if selected_indicator_id:
+                        supabase.table('indicadores_economicos').update(form_data).eq('id', selected_indicator_id).execute()
+                        st.success(f"Indicador '{nome_indicador}' atualizado com sucesso!")
+                    else:
+                        supabase.table('indicadores_economicos').insert(form_data).execute()
+                        st.success(f"Indicador '{nome_indicador}' criado com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar indicador: {e}")
+        
+        if selected_indicator_id:
+            if st.button(f"Apagar Indicador '{selected_indicator_label}'", type="primary"):
+                try:
+                    supabase.table('indicadores_economicos').delete().eq('id', selected_indicator_id).execute()
+                    st.success("Indicador apagado com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao apagar: {e}")
 
     with tab_temas:
         st.header("Gerenciar Temas de Investimento")
-        st.info("Funcionalidade de Editar/Apagar para Temas em breve.")
+        
+        themes_map = get_all_themes()
+        selected_theme_name = st.selectbox(
+            "Selecione um tema para editar ou escolha 'Criar Novo Tema'",
+            options=list(themes_map.keys()),
+            key="theme_select"
+        )
+        selected_theme_id = themes_map[selected_theme_name]
+
+        with st.form("theme_form", clear_on_submit=False):
+            nome_tema = st.text_input("Nome do Tema", value=selected_theme_name if selected_theme_id else "")
+            submitted_theme = st.form_submit_button("Salvar Tema")
+
+            if submitted_theme and nome_tema:
+                try:
+                    if selected_theme_id:
+                        supabase.table('temas').update({'nome': nome_tema}).eq('id', selected_theme_id).execute()
+                        st.success(f"Tema '{nome_tema}' atualizado com sucesso!")
+                    else:
+                        supabase.table('temas').insert({'nome': nome_tema}).execute()
+                        st.success(f"Tema '{nome_tema}' criado com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao salvar tema: {e}")
+
+        if selected_theme_id:
+            if st.button(f"Apagar Tema '{selected_theme_name}'", type="primary"):
+                try:
+                    supabase.table('temas').delete().eq('id', selected_theme_id).execute()
+                    st.success("Tema apagado com sucesso!")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao apagar: {e}")
 
 elif password:
     st.error("Senha incorreta. Tente novamente.")
