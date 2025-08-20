@@ -4,7 +4,7 @@ import pandas as pd
 import altair as alt
 from fpdf import FPDF
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- CONEXÃO COM O SUPABASE ---
 @st.cache_resource
