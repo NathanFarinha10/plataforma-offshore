@@ -2,6 +2,9 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 import altair as alt
+from fpdf import FPDF
+import io
+from datetime import datetime
 
 # --- CONEXÃO COM O SUPABASE ---
 @st.cache_resource
@@ -74,6 +77,63 @@ def display_analises(analises):
             st.caption(f"Visão da Gestora: **{analise['visao']}**")
             st.write(f"**Resumo:** {analise['resumo']}")
             st.write(f"**Análise Completa:** {analise['texto_completo']}")
+
+# --- NOVA FUNÇÃO: GERADOR DE PDF ---
+def generate_pdf_report(selected_data):
+    """Gera um relatório em PDF a partir dos dados selecionados."""
+    
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
+            self.ln(10)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+
+    pdf = PDF()
+    pdf.add_page()
+    
+    # IMPORTANTE: Definir uma fonte que suporte caracteres Unicode (acentos, emojis)
+    # Streamlit Cloud não tem fontes complexas, então usaremos o básico
+    # Para produção real, seria necessário incluir um ficheiro de fonte (.ttf)
+    pdf.set_font('Arial', '', 12)
+    
+    # Página de Título
+    pdf.set_font('Arial', 'B', 24)
+    pdf.cell(0, 20, 'Inteligência Global', 0, 1, 'C')
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 10, f"Relatório gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1, 'C')
+    pdf.ln(20)
+
+    # Adiciona o conteúdo
+    for section_title, analises in selected_data.items():
+        if analises:
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 16)
+            pdf.cell(0, 10, section_title, 0, 1, 'L')
+            pdf.ln(5)
+            
+            for analise in analises:
+                nome_gestora = analise['gestoras']['nome'] if analise.get('gestoras') else "N/A"
+                pdf.set_font('Arial', 'B', 12)
+                
+                # Tenta codificar o texto para o PDF, ignorando caracteres problemáticos
+                titulo_encoded = analise['titulo'].encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 10, f"{titulo_encoded} (Fonte: {nome_gestora})")
+                
+                pdf.set_font('Arial', '', 11)
+                pdf.cell(0, 8, f"Visão: {analise['visao']}", 0, 1)
+                
+                resumo_encoded = analise['resumo'].encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 8, f"Resumo: {resumo_encoded}")
+                pdf.ln(5)
+
+    # Gera o PDF em memória
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return pdf_bytes
 
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
@@ -253,5 +313,50 @@ with tab_thematic:
         display_analises(response.data)
 
 with tab_report:
-    st.header("📄 Gerador de Relatórios")
-    st.write("Em breve...")
+    st.header("📄 Gerador de Relatórios Personalizados")
+    st.write("Selecione as análises que deseja incluir no seu relatório em PDF.")
+    
+    # Carrega dados para os seletores
+    paises_map = get_paises()
+    classes_map = get_classes_de_ativos()
+    temas_map = get_temas()
+
+    # UI de Seleção
+    selected_paises = st.multiselect("Análises Macro por País:", options=list(paises_map.keys()))
+    selected_classes = st.multiselect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
+    selected_temas = st.multiselect("Análises Temáticas:", options=[k for k in temas_map.keys() if k != '--Selecione--'])
+    
+    # Botão para iniciar a geração
+    if st.button("Gerar Relatório"):
+        with st.spinner("Compilando seu relatório... Por favor, aguarde."):
+            report_data = {}
+            
+            # Busca dados macro
+            if selected_paises:
+                pais_ids = [paises_map[p] for p in selected_paises]
+                macro_response = supabase.table('analises').select('*, gestoras(nome)').in_('pais_id', pais_ids).eq('tipo_analise', 'Macro').execute()
+                report_data['Analises Macroeconomicas'] = macro_response.data
+            
+            # Busca dados de classes de ativos
+            if selected_classes:
+                classe_ids = [classes_map[c] for c in selected_classes]
+                asset_response = supabase.table('analises').select('*, gestoras(nome)').in_('classe_de_ativo_id', classe_ids).eq('tipo_analise', 'Asset').execute()
+                report_data['Analises por Classe de Ativo'] = asset_response.data
+
+            # Busca dados de temas
+            if selected_temas:
+                tema_ids = [temas_map[t] for t in selected_temas]
+                thematic_response = supabase.table('analises').select('*, gestoras(nome)').in_('tema_id', tema_ids).eq('tipo_analise', 'Thematic').execute()
+                report_data['Analises Tematicas'] = thematic_response.data
+            
+            # Gera o PDF e armazena no estado da sessão
+            st.session_state.pdf_report = generate_pdf_report(report_data)
+
+    # Botão de download (só aparece se o relatório foi gerado)
+    if 'pdf_report' in st.session_state and st.session_state.pdf_report:
+        st.download_button(
+            label="Clique para Baixar o PDF",
+            data=st.session_state.pdf_report,
+            file_name=f"Relatorio_Inteligencia_Global_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf"
+        )
