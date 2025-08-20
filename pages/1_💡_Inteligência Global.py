@@ -309,7 +309,7 @@ with tab_report:
     temas_map = get_temas()
 
     selected_paises = st.multiselect("Análises Macro por País:", options=list(paises_map.keys()))
-    selected_classes = st.multisecect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
+    selected_classes = st.multiselect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
     selected_temas = st.multiselect("Análises Temáticas:", options=[k for k in temas_map.keys() if k != '--Selecione--'])
     
     if st.button("Gerar Relatório"):
