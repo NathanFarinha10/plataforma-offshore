@@ -80,31 +80,33 @@ def display_analises(analises):
 
 # --- NOVA FUNÇÃO: GERADOR DE PDF ---
 def generate_pdf_report(selected_data):
-    """Gera um relatório em PDF a partir dos dados selecionados."""
+    """Gera um relatório em PDF robusto com suporte a Unicode."""
     
     class PDF(FPDF):
         def header(self):
-            self.set_font('Arial', 'B', 12)
+            self.set_font('DejaVu', 'B', 12)
             self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
             self.ln(10)
 
         def footer(self):
             self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
+            self.set_font('DejaVu', 'I', 8)
             self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
     pdf = PDF()
+    
+    # Adiciona a fonte Unicode que carregámos para o repositório
+    # O 'uni=True' é o parâmetro chave para ativar o modo UTF-8
+    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+    pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True) # Versão a negrito
+    pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True) # Versão itálico
+
     pdf.add_page()
     
-    # IMPORTANTE: Definir uma fonte que suporte caracteres Unicode (acentos, emojis)
-    # Streamlit Cloud não tem fontes complexas, então usaremos o básico
-    # Para produção real, seria necessário incluir um ficheiro de fonte (.ttf)
-    pdf.set_font('Arial', '', 12)
-    
     # Página de Título
-    pdf.set_font('Arial', 'B', 24)
+    pdf.set_font('DejaVu', 'B', 24)
     pdf.cell(0, 20, 'Inteligência Global', 0, 1, 'C')
-    pdf.set_font('Arial', '', 12)
+    pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, f"Relatório gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1, 'C')
     pdf.ln(20)
 
@@ -112,28 +114,23 @@ def generate_pdf_report(selected_data):
     for section_title, analises in selected_data.items():
         if analises:
             pdf.add_page()
-            pdf.set_font('Arial', 'B', 16)
-            pdf.cell(0, 10, section_title, 0, 1, 'L')
+            pdf.set_font('DejaVu', 'B', 16)
+            pdf.multi_cell(0, 10, section_title, 0, 'L')
             pdf.ln(5)
             
             for analise in analises:
                 nome_gestora = analise['gestoras']['nome'] if analise.get('gestoras') else "N/A"
-                pdf.set_font('Arial', 'B', 12)
+                pdf.set_font('DejaVu', 'B', 12)
+                # Agora passamos o texto diretamente, sem truques de .encode()
+                pdf.multi_cell(0, 10, f"{analise['titulo']} (Fonte: {nome_gestora})")
                 
-                # Tenta codificar o texto para o PDF, ignorando caracteres problemáticos
-                titulo_encoded = analise['titulo'].encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 10, f"{titulo_encoded} (Fonte: {nome_gestora})")
-                
-                pdf.set_font('Arial', '', 11)
-                pdf.cell(0, 8, f"Visão: {analise['visao']}", 0, 1)
-                
-                resumo_encoded = analise['resumo'].encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 8, f"Resumo: {resumo_encoded}")
+                pdf.set_font('DejaVu', '', 11)
+                pdf.multi_cell(0, 8, f"Visão: {analise['visao']}", 0, 'L')
+                pdf.multi_cell(0, 8, f"Resumo: {analise['resumo']}", 0, 'L')
                 pdf.ln(5)
 
-    # Gera o PDF em memória
-    pdf_bytes = pdf.output(dest='B')
-    return pdf_bytes
+    # Gera o PDF em memória como bytes
+    return pdf.output(dest='B')
 
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
