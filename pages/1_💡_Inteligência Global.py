@@ -84,31 +84,18 @@ def display_analises(analises):
 def generate_pdf_report(selected_data):
     class PDF(FPDF):
         def header(self):
-            try:
-                self.set_font('DejaVu', 'B', 12)
-                self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
-                self.ln(10)
-            except Exception as e:
-                st.warning(f"Aviso no cabeçalho do PDF: {e}")
-
+            self.set_font('DejaVu', 'B', 12)
+            self.cell(0, 10, 'Relatório de Inteligência Global', 0, 1, 'C')
+            self.ln(10)
         def footer(self):
-            try:
-                self.set_y(-15)
-                self.set_font('DejaVu', 'I', 8)
-                self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
-            except Exception as e:
-                st.warning(f"Aviso no rodapé do PDF: {e}")
+            self.set_y(-15)
+            self.set_font('DejaVu', 'I', 8)
+            self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
     pdf = PDF()
-    
-    try:
-        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True)
-        pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True)
-    except Exception as e:
-        st.error(f"ERRO CRÍTICO: Falha ao carregar a fonte 'DejaVuSans.ttf'. Verifique se o ficheiro existe no repositório. Detalhes: {e}")
-        return None
-
+    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+    pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True)
+    pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True)
     pdf.add_page()
     pdf.set_font('DejaVu', 'B', 24)
     pdf.cell(0, 20, 'Inteligência Global', 0, 1, 'C')
@@ -117,44 +104,24 @@ def generate_pdf_report(selected_data):
     pdf.ln(20)
 
     for section_title, analises in selected_data.items():
-        if not analises:
-            continue
-        
+        if not analises: continue
         pdf.add_page()
         pdf.set_font('DejaVu', 'B', 16)
         pdf.multi_cell(0, 10, str(section_title), 0, 'L')
         pdf.ln(5)
-        
-        for i, analise in enumerate(analises):
-            try:
-                # Converte cada campo para string de forma defensiva
-                nome_gestora = str(analise.get('gestoras', {}).get('nome', "N/A"))
-                titulo = str(analise.get('titulo', 'Sem Título'))
-                visao = str(analise.get('visao', 'N/A'))
-                resumo = str(analise.get('resumo', ''))
-                
-                pdf.set_font('DejaVu', 'B', 12)
-                pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})")
-                
-                pdf.set_font('DejaVu', '', 11)
-                # Usar 'cell' para a linha curta e 'multi_cell' para a longa
-                pdf.cell(0, 8, f"Visão: {visao}", ln=1, align='L')
-                pdf.multi_cell(0, 8, f"Resumo: {resumo}")
-                pdf.ln(8)
-            except Exception as e:
-                st.warning(f"Aviso: A análise '{titulo[:30]}...' não pôde ser incluída no PDF devido a um erro de conteúdo. Detalhes: {e}")
-                continue # Pula para a próxima análise em vez de quebrar
-
-    try:
-        pdf_bytes = pdf.output(dest='B')
-        if not pdf_bytes:
-            st.error("Falha Crítica: A biblioteca de PDF gerou um ficheiro vazio.")
-            return None
-        return pdf_bytes
-    except Exception as e:
-        st.error(f"Falha Crítica ao finalizar o PDF: {e}")
-        return None
-
+        for analise in analises:
+            nome_gestora = str(analise.get('gestoras', {}).get('nome', "N/A"))
+            titulo = str(analise.get('titulo', 'Sem Título'))
+            visao = str(analise.get('visao', 'N/A'))
+            resumo = str(analise.get('resumo', ''))
+            pdf.set_font('DejaVu', 'B', 12)
+            pdf.multi_cell(0, 8, f"{titulo} (Fonte: {nome_gestora})")
+            pdf.set_font('DejaVu', '', 11)
+            pdf.cell(0, 8, f"Visão: {visao}", ln=1, align='L')
+            pdf.multi_cell(0, 8, f"Resumo: {resumo}")
+            pdf.ln(8)
+            
+    return pdf.output(dest='B')
         
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
@@ -342,34 +309,23 @@ with tab_report:
     temas_map = get_temas()
 
     selected_paises = st.multiselect("Análises Macro por País:", options=list(paises_map.keys()))
-    selected_classes = st.multiselect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
+    selected_classes = st.multisecect("Análises por Classe de Ativo (geral):", options=[k for k in classes_map.keys() if k != '--Selecione--'])
     selected_temas = st.multiselect("Análises Temáticas:", options=[k for k in temas_map.keys() if k != '--Selecione--'])
     
     if st.button("Gerar Relatório"):
         with st.spinner("Compilando seu relatório..."):
             report_data = {}
             # ... (código para buscar dados não muda)
-            
-            # Chama a função de geração de PDF
-            pdf_data_bytes = generate_pdf_report(report_data)
 
-            # --- NOVO CÓDIGO DE DEPURAÇÃO ---
-            st.markdown("---")
-            st.subheader("🕵️ Informação de Depuração")
-            if pdf_data_bytes is not None:
-                st.info(f"Tipo de dados retornados pela função PDF: **{type(pdf_data_bytes)}**")
-                st.info(f"Tamanho dos dados retornados: **{len(pdf_data_bytes)} bytes**")
-                
-                if isinstance(pdf_data_bytes, bytes) and len(pdf_data_bytes) > 100:
-                    st.success("Diagnóstico: Os dados parecem ser 'bytes' válidos e não vazios.")
-                    st.session_state.pdf_report = pdf_data_bytes
-                else:
-                    st.error("Diagnóstico: Os dados retornados NÃO são 'bytes' válidos ou estão vazios. O download não será disponibilizado.")
-                    st.session_state.pdf_report = None
+            pdf_output = generate_pdf_report(report_data)
+
+            if pdf_output:
+                # A CORREÇÃO FINAL ESTÁ AQUI:
+                # Convertemos explicitamente o resultado para 'bytes'
+                st.session_state.pdf_report = bytes(pdf_output)
             else:
-                st.error("Diagnóstico: A função de geração de PDF retornou `None`. Verifique os avisos de erro acima.")
                 st.session_state.pdf_report = None
-            st.markdown("---")
+                st.error("Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.")
 
     if 'pdf_report' in st.session_state and st.session_state.pdf_report:
         st.download_button(
