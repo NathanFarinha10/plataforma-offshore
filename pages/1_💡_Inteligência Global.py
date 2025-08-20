@@ -100,6 +100,7 @@ def generate_pdf_report(selected_data):
     # Adiciona a fonte Unicode que carregámos para o repositório
     pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
     pdf.add_font('DejaVu', 'B', 'DejaVuSans.ttf', uni=True)
+    pdf.add_font('DejaVu', 'I', 'DejaVuSans.ttf', uni=True) # VERSÃO ITÁLICO (LINHA ADICIONADA)
 
     pdf.add_page()
     
