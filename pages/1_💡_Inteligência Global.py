@@ -17,6 +17,18 @@ def get_paises():
     response = supabase.table('paises').select('id, nome, emoji_bandeira').execute()
     return {f"{item['nome']} {item['emoji_bandeira']}": item['id'] for item in response.data}
 
+@st.cache_data(ttl=600)
+def get_classes_de_ativos():
+    response = supabase.table('classes_de_ativos').select('id, nome').execute()
+    return {"--Selecione--": None, **{item['nome']: item['id'] for item in response.data}}
+
+@st.cache_data(ttl=600)
+def get_subclasses_de_ativos(classe_pai_id):
+    if not classe_pai_id:
+        return {"--Selecione--": None}
+    response = supabase.table('subclasses_de_ativos').select('id, nome').eq('classe_pai_id', classe_pai_id).execute()
+    return {"--Selecione--": None, **{item['nome']: item['id'] for item in response.data}}
+
 # --- FUNÇÃO DE VISUALIZAÇÃO ---
 def create_timeline_chart(data):
     """Cria um gráfico de timeline com a evolução das visões das gestoras."""
@@ -44,6 +56,19 @@ def create_timeline_chart(data):
     ).interactive()
     
     return chart
+
+def display_analises(analises):
+    """Função reutilizável para exibir uma lista de análises."""
+    if not analises:
+        st.info("Nenhuma análise encontrada para os filtros selecionados.")
+        return
+    
+    for analise in analises:
+        nome_gestora = analise['gestoras']['nome'] if analise.get('gestoras') else "N/A"
+        with st.expander(f"**{analise['titulo']}** (Visão: {nome_gestora})"):
+            st.caption(f"Visão da Gestora: **{analise['visao']}**")
+            st.write(f"**Resumo:** {analise['resumo']}")
+            st.write(f"**Análise Completa:** {analise['texto_completo']}")
 
 # --- LAYOUT DA PÁGINA ---
 st.set_page_config(page_title="Inteligência Global", page_icon="💡", layout="wide")
@@ -155,11 +180,48 @@ with tab_macro:
 # --- OUTRAS ABAS (EM CONSTRUÇÃO) ---
 with tab_assets:
     st.header("📊 Análise por Classe de Ativo")
-    st.write("Em breve...")
+    paises_map_assets = get_paises()
+    classes_map_assets = get_classes_de_ativos()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        pais_selecionado_nome = st.selectbox("Selecione um país:", options=list(paises_map_assets.keys()), key="asset_pais")
+    with col2:
+        classe_selecionada_nome = st.selectbox("Selecione uma Classe de Ativo:", options=list(classes_map_assets.keys()), key="asset_classe")
 
+    if pais_selecionado_nome and classe_selecionada_nome != "--Selecione--":
+        pais_id = paises_map_assets[pais_selecionado_nome]
+        classe_id = classes_map_assets[classe_selecionada_nome]
+
+        response = supabase.table('analises').select('*, gestoras(nome)').eq('pais_id', pais_id).eq('classe_de_ativo_id', classe_id).in_('tipo_analise', ['Asset', 'Tese', 'Driver']).execute()
+        
+        st.markdown("---")
+        display_analises(response.data)
+
+# --- NOVA: ABA MICROASSETS VIEW ---
 with tab_micro:
     st.header("🔬 Análise por Sub-Classe de Ativo")
-    st.write("Em breve...")
+    paises_map_micro = get_paises()
+    classes_map_micro = get_classes_de_ativos()
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        pais_selecionado_nome_micro = st.selectbox("Selecione um país:", options=list(paises_map_micro.keys()), key="micro_pais")
+    with col2:
+        classe_selecionada_nome_micro = st.selectbox("Selecione uma Classe:", options=list(classes_map_micro.keys()), key="micro_classe")
+    
+    subclasses_map_micro = get_subclasses_de_ativos(classes_map_micro.get(classe_selecionada_nome_micro))
+    with col3:
+        subclasse_selecionada_nome_micro = st.selectbox("Selecione uma Sub-Classe:", options=list(subclasses_map_micro.keys()), key="micro_subclasse")
+
+    if pais_selecionado_nome_micro and classe_selecionada_nome_micro != "--Selecione--" and subclasse_selecionada_nome_micro != "--Selecione--":
+        pais_id = paises_map_micro[pais_selecionado_nome_micro]
+        subclasse_id = subclasses_map_micro[subclasse_selecionada_nome_micro]
+
+        response = supabase.table('analises').select('*, gestoras(nome)').eq('pais_id', pais_id).eq('subclasse_de_ativo_id', subclasse_id).in_('tipo_analise', ['MicroAsset', 'Tese', 'Driver']).execute()
+
+        st.markdown("---")
+        display_analises(response.data)
 
 with tab_thematic:
     st.header("🎨 Análise de Teses Temáticas")
