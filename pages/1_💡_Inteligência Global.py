@@ -29,6 +29,11 @@ def get_subclasses_de_ativos(classe_pai_id):
     response = supabase.table('subclasses_de_ativos').select('id, nome').eq('classe_pai_id', classe_pai_id).execute()
     return {"--Selecione--": None, **{item['nome']: item['id'] for item in response.data}}
 
+@st.cache_data(ttl=600)
+def get_temas():
+    response = supabase.table('temas').select('id, nome').execute()
+    return {"--Selecione--": None, **{item['nome']: item['id'] for item in response.data}}
+
 # --- FUNÇÃO DE VISUALIZAÇÃO ---
 def create_timeline_chart(data):
     """Cria um gráfico de timeline com a evolução das visões das gestoras."""
@@ -225,7 +230,27 @@ with tab_micro:
 
 with tab_thematic:
     st.header("🎨 Análise de Teses Temáticas")
-    st.write("Em breve...")
+    temas_map = get_temas()
+    
+    tema_selecionado_nome = st.selectbox(
+        "Selecione um tema para explorar as análises:",
+        options=list(temas_map.keys()),
+        key="tema_select"
+    )
+
+    if tema_selecionado_nome and tema_selecionado_nome != "--Selecione--":
+        tema_id = temas_map[tema_selecionado_nome]
+        
+        response = supabase.table('analises').select(
+            '*, gestoras(nome)'
+        ).eq(
+            'tema_id', tema_id
+        ).eq(
+            'tipo_analise', 'Thematic'
+        ).execute()
+
+        st.markdown("---")
+        display_analises(response.data)
 
 with tab_report:
     st.header("📄 Gerador de Relatórios")
