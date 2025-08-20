@@ -132,7 +132,7 @@ def generate_pdf_report(selected_data):
                 pdf.ln(5)
 
     # Gera o PDF em memória
-    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    pdf_bytes = pdf.output()
     return pdf_bytes
 
 # --- LAYOUT DA PÁGINA ---
